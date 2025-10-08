@@ -4,9 +4,27 @@ Script to retrieve the labs publication from Crossref/Scholar
 """
 
 import requests
-from requests import auth
-from requests.auth import AuthBase
 import yaml
+from html.parser import HTMLParser
+
+
+class HTMLStripper(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.result = []
+
+    def handle_data(self, data):
+        self.result.append(data)
+
+    def get_data(self):
+        return "".join(self.result)
+
+
+def strip_html_tags(text):
+    parser = HTMLStripper()
+    parser.feed(text)
+    return parser.get_data()
+
 
 with open("lab_list.yml", "r") as f:
     researchers: list[dict[str, str]] = list(
@@ -19,17 +37,21 @@ for researcher in researchers:
         r = requests.get("https://api.crossref.org/works", request_parameters)
         data = r.json()
         for item in data["message"]["items"]:
-            title = item.get("title", [""])[0]
+            title = strip_html_tags(
+                item.get("title", [""])[0]
+            )  # Sometimes weird HTML tags in titles (2 of CO2)
             doi = item.get("DOI", "")
             year = item.get("created", {}).get("date-parts", [[None]])[0][0]
             date = item.get("created", {}).get("date-parts")[0]
             date_str = f"{date[0]}-{date[1]}-{date[2]}"
             authors = item.get("author", [])
             journal = item.get("container-title", [""])[0]
-            issue = item.get("issue", "")
-            print(f"journal: {journal}")
+            volume = item.get("volume")
+            issue = item.get("issue")
+            pages = item.get("pages")
+            article_number = item.get("article-number")
             author_list = [
-                f"{a.get('family', '')} {a.get('given', '')[0]}." for a in authors
+                f"{a.get('given', '')} {a.get('family', '')}" for a in authors
             ]
             print("-----------------------------------------------------")
             print(f"{title} ({year}) {author_list} https://doi.org/{doi}")
@@ -52,8 +74,11 @@ for researcher in researchers:
             markdown_string += f"permalink: /publications/{doi.replace('/','-')}\n"
             markdown_string += f'date: {date_str}\nvenue: "{journal}"\n'
             markdown_string += f'paperurl: "https://dx.doi.org/{doi}"\n'
-            # markdown_string += f'citation: "{author_list} ({year}) &quot;{title}.&quot; <i>{journal}</i>, {issue}"\n'
-            markdown_string += f"excerpt: By {", ".join(author_list)}.\n"
+            markdown_string += (
+                (f"excerpt: By {", ".join(author_list[:-1])} and {author_list[-1]}.\n")
+                if len(author_list) > 1
+                else f"excerpt: By {author_list[0]}.\n"
+            )
             markdown_string += f"bibtexurl: http://navier-geotechnique.github.io/files/{doi.replace('/','-')}.bib\n---\n"
             markdown_string += abstract
             with open(f"../_publications/{filename}", "w") as md_file:
