@@ -24,7 +24,7 @@ repository: "navier-geotechnique/navier-geotechnique.github.io"
 #               Additional customization can be done by editing /_includes/author-profile.html
 author:
   # Biographic information
-  avatar: "navier-logo.png"
+  avatar: "logo-navier-extended.png"
   name: "Navier Geotechnics Team"
   pronouns: # example: "she/her"
   bio: "Geotechnics team at Navier Laboratory - École nationale des ponts et chaussées | IP Paris, Gustave Eiffel University, CNRS"
